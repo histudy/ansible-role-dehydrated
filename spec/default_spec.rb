@@ -1,74 +1,57 @@
 require 'spec_helper'
 
-def e(value)
-  return Regexp.escape(value.is_a?(String) ? value : value.to_s)
+describe package('dehydrated') do
+  it { should be_installed }
 end
 
-describe 'role dehydrated' do
-  describe package('dehydrated') do
-    it { should be_installed }
-  end
-  describe file(property['dehydrated_config_dir'] + '/config') do
-    it { should exist }
-    it { should be_file }
-    if property['dehydrated_cfg'].has_key?('ip_version')
-      its(:content) { should match /^IP_VERSION="#{property['dehydrated_cfg']['ip_version']}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('ca')
-      its(:content) { should match /^CA="#{e(property['dehydrated_cfg']['ca'])}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('ca_terms')
-      its(:content) { should match /^CA_TERMS="#{e(property['dehydrated_cfg']['ca_terms'])}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('challengetype')
-      its(:content) { should match /^CHALLENGETYPE="#{e(property['dehydrated_cfg']['challengetype'])}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('wellknown')
-      its(:content) { should match /^WELLKNOWN="#{e(property['dehydrated_cfg']['wellknown'])}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('keysize')
-      its(:content) { should match /^KEYSIZE="#{property['dehydrated_cfg']['keysize']}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('hook_chain')
-      hook_chain = property['dehydrated_cfg']['hook_chain'] ? 'yes' : 'no'
-      its(:content) { should match /^HOOK_CHAIN="#{hook_chain}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('renew_days')
-      its(:content) { should match /^RENEW_DAYS="#{property['dehydrated_cfg']['renew_days']}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('private_key_renew')
-      private_key_renew = property['dehydrated_cfg']['private_key_renew'] ? 'yes' : 'no'
-      its(:content) { should match /^PRIVATE_KEY_RENEW="#{private_key_renew}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('private_key_rollover')
-      private_key_rollover = property['dehydrated_cfg']['private_key_rollover'] ? 'yes' : 'no'
-      its(:content) { should match /^PRIVATE_KEY_ROLLOVER="#{private_key_rollover}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('key_algo')
-      its(:content) { should match /^KEY_ALGO="#{e(property['dehydrated_cfg']['key_algo'])}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('contact_email')
-      its(:content) { should match /^CONTACT_EMAIL="#{e(property['dehydrated_cfg']['contact_email'])}"/ }
-    end
-    if property['dehydrated_cfg'].has_key?('ocsp_must_staple')
-      ocsp_must_staple = property['dehydrated_cfg']['ocsp_must_staple'] ? 'yes' : 'no'
-      its(:content) { should match /^OCSP_MUST_STAPLE="#{ocsp_must_staple}"/ }
-    end
-  end
-  describe file(property['dehydrated_config_dir'] + '/domains.txt') do
-    it { should exist }
-    it { should be_file }
-    property['dehydrated_domains'].each do |domain|
-      if domain.is_a?(String)
-        its(:content) { should match /^#{e(domain)}$/ }
-      elsif domain.is_a?(Array)
-        its(:content) { should match /^#{e(domain.join(' '))}$/ }
-      end
-    end
-  end
-  describe file(property['dehydrated_config_dir'] + '/hook.sh') do
-    it { should exist }
-    it { should be_file }
-    it { should be_mode 750 }
-  end
+describe file('/etc/dehydrated/conf.d/localhost.sh') do
+  it { should exist }
+  it { should be_file }
+  it { should contain 'CA="https://acme-staging.api.letsencrypt.org/directory"' }
+  it { should contain 'CHALLENGETYPE="dns-01"' }
+  it { should contain 'DEHYDRATED_USER=root' }
+  it { should contain 'DEHYDRATED_GROUP=adm' }
+  it { should contain 'IP_VERSION=4' }
+  it { should contain 'OLDCA=""' }
+  it { should contain 'KEYSIZE="2048"' }
+  it { should contain 'OPENSSL_CNF=' }
+  it { should contain 'OPENSSL="/usr/bin/openssl"' }
+  it { should contain 'CURL_OPTS=""' }
+  it { should contain 'HOOK_CHAIN="yes"' }
+  it { should contain 'RENEW_DAYS="31"' }
+  it { should contain 'PRIVATE_KEY_RENEW="no"' }
+  it { should contain 'PRIVATE_KEY_ROLLOVER="yes"' }
+  it { should contain 'KEY_ALGO=prime256v1' }
+  it { should contain 'CONTACT_EMAIL=pc.poisoning@gmail.com' }
+  it { should contain 'OCSP_MUST_STAPLE="yes"' }
+  it { should contain 'OCSP_FETCH="no"' }
+  it { should contain 'AUTO_CLEANUP="yes"' }
+  it { should contain 'API=1' }
+end
+
+describe file('/etc/dehydrated/domains.txt') do
+  it { should exist }
+  it { should be_file }
+  its(:content) { should match(/^example.com$/) }
+  its(:content) { should match(/^example.net www.example.net$/) }
+end
+
+describe file('/etc/cron.d/ansible_management_job') do
+  it { should contain '/usr/bin/dehydrated --cron' }
+end
+
+describe file('/etc/dehydrated/hook.sh') do
+  it { should exist }
+  it { should be_file }
+  it { should be_executable }
+  it { should contain '# test hook initialize' }
+  it { should contain '# test deploy_challenge hook' }
+  it { should contain '# test clean_challenge hook' }
+  it { should contain '# test deploy_cert hook' }
+  it { should contain '# test unchanged_cert hook' }
+  it { should contain '# test invalid_challenge hook' }
+  it { should contain '# test request_failure hook' }
+  it { should contain '# test generate_csr hook' }
+  it { should contain '# test startup_hook hook' }
+  it { should contain '# test exit_hook hook' }
 end
